@@ -6,6 +6,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/buildkite/cli/v3/internal/configfile"
 	"github.com/zalando/go-keyring"
 )
 
@@ -111,13 +112,22 @@ func isKeyringAvailable() bool {
 			return
 		}
 
-		// Disable keyring in CI environments
-		if os.Getenv("CI") != "" || os.Getenv("BUILDKITE") != "" {
+		// Disable keyring in Buildkite agent environments
+		if os.Getenv("BUILDKITE") != "" {
 			keyringAvailable = false
 			return
 		}
 
-		// Assume keyring is available; callers can handle errors
+		// Disable keyring in generic CI unless the user opts in from user config
+		if os.Getenv("CI") != "" {
+			conf := configfile.New(nil, nil)
+			if !conf.AllowKeyringInCI() {
+				keyringAvailable = false
+				return
+			}
+		}
+
+		// Assume keyring is available; callers can handle runtime errors
 		keyringAvailable = true
 	})
 	return keyringAvailable

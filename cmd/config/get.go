@@ -17,13 +17,15 @@ Returns the effective value after applying precedence rules:
   Environment variable > Local config (.bk.yaml) > User config (~/.config/bk.yaml) > Default
 
 Valid keys:
-  selected_org   Organization slug to use
-  output_format  Default output format (json, yaml, text)
-  no_pager       Disable pager for text output (true, false)
-  quiet          Suppress progress output (true, false)
-  no_input       Disable interactive prompts (true, false)
-  pager          Custom pager command
-  experiments    Enabled experiment flags
+  selected_org          Organization slug to use
+  output_format         Default output format (json, yaml, text)
+  no_pager              Disable pager for text output (true, false)
+  quiet                 Suppress progress output (true, false)
+  no_input              Disable interactive prompts (true, false)
+  pager                 Custom pager command
+  telemetry             Enable anonymous usage telemetry (true, false)
+  experiments           Enabled experiment flags
+  allow_keyring_in_ci   Allow keyring when CI is set (true, false) [user config only]
 
 Examples:
   $ bk config get output_format
@@ -69,8 +71,20 @@ func (c *GetCmd) Run() error {
 		}
 	case KeyPager:
 		value = conf.Pager()
+	case KeyTelemetry:
+		if conf.TelemetryEnabled() {
+			value = "true"
+		} else {
+			value = "false"
+		}
 	case KeyExperiments:
 		value = conf.Experiments()
+	case KeyAllowKeyringInCI:
+		if conf.AllowKeyringInCI() {
+			value = "true"
+		} else {
+			value = "false"
+		}
 	}
 
 	if value != "" {

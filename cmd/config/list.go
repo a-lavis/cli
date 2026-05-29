@@ -63,6 +63,9 @@ func (c *ListCmd) Run() error {
 		if v := conf.Experiments(); v != "" {
 			items = append(items, configItem{string(KeyExperiments), v, "effective"})
 		}
+		if conf.AllowKeyringInCI() {
+			items = append(items, configItem{string(KeyAllowKeyringInCI), "true", "effective"})
+		}
 	}
 
 	if c.Local && !inGitRepo {

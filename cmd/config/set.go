@@ -17,13 +17,15 @@ func (c *SetCmd) Help() string {
 	return `Set a configuration value.
 
 Valid keys:
-  selected_org   Organization slug to use
-  output_format  Default output format (json, yaml, text)
-  no_pager       Disable pager for text output (true, false)
-  quiet          Suppress progress output (true, false)
-  no_input       Disable interactive prompts (true, false) [user config only]
-  pager          Custom pager command [user config only]
-  telemetry      Enable anonymous usage telemetry (true, false) [user config only]
+  selected_org          Organization slug to use
+  output_format         Default output format (json, yaml, text)
+  no_pager              Disable pager for text output (true, false)
+  quiet                 Suppress progress output (true, false)
+  no_input              Disable interactive prompts (true, false) [user config only]
+  pager                 Custom pager command [user config only]
+  telemetry             Enable anonymous usage telemetry (true, false) [user config only]
+  experiments           Enabled experiment flags [user config only]
+  allow_keyring_in_ci   Allow keyring when CI is set (true, false) [user config only]
 
 Examples:
   # Set default output format to YAML

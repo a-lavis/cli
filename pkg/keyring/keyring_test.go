@@ -2,6 +2,7 @@ package keyring
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -15,9 +16,9 @@ func setEnv(t *testing.T, key, value string) {
 	}
 	t.Cleanup(func() {
 		if had {
-			os.Setenv(key, original)
+			_ = os.Setenv(key, original)
 		} else {
-			os.Unsetenv(key)
+			_ = os.Unsetenv(key)
 		}
 		// Reset the once so the next test starts fresh.
 		ResetForTesting()
@@ -26,13 +27,29 @@ func setEnv(t *testing.T, key, value string) {
 	ResetForTesting()
 }
 
+func writeUserConfig(t *testing.T, content string) {
+	t.Helper()
+
+	configHome := t.TempDir()
+	setEnv(t, "XDG_CONFIG_HOME", configHome)
+
+	if content == "" {
+		return
+	}
+
+	if err := os.WriteFile(filepath.Join(configHome, "bk.yaml"), []byte(content), 0o600); err != nil {
+		t.Fatalf("failed to write user config: %v", err)
+	}
+}
+
 func TestIsKeyringAvailable(t *testing.T) {
 	// These tests manipulate package-level state (sync.Once) so must not run
 	// in parallel with each other.
 
 	t.Run("disabled by BUILDKITE_NO_KEYRING", func(t *testing.T) {
+		writeUserConfig(t, "allow_keyring_in_ci: true\n")
 		setEnv(t, "BUILDKITE_NO_KEYRING", "1")
-		setEnv(t, "CI", "")
+		setEnv(t, "CI", "true")
 		setEnv(t, "BUILDKITE", "")
 
 		kr := New()
@@ -41,21 +58,35 @@ func TestIsKeyringAvailable(t *testing.T) {
 		}
 	})
 
-	t.Run("disabled by CI", func(t *testing.T) {
+	t.Run("disabled by CI by default", func(t *testing.T) {
+		writeUserConfig(t, "")
 		setEnv(t, "CI", "true")
 		setEnv(t, "BUILDKITE_NO_KEYRING", "")
 		setEnv(t, "BUILDKITE", "")
 
 		kr := New()
 		if kr.IsAvailable() {
-			t.Error("expected keyring to be unavailable when CI is set")
+			t.Error("expected keyring to be unavailable when CI is set and allow_keyring_in_ci is not enabled")
 		}
 	})
 
-	t.Run("disabled by BUILDKITE", func(t *testing.T) {
+	t.Run("enabled by CI opt-in from user config", func(t *testing.T) {
+		writeUserConfig(t, "allow_keyring_in_ci: true\n")
+		setEnv(t, "CI", "true")
+		setEnv(t, "BUILDKITE_NO_KEYRING", "")
+		setEnv(t, "BUILDKITE", "")
+
+		kr := New()
+		if !kr.IsAvailable() {
+			t.Error("expected keyring to be available when CI is set and allow_keyring_in_ci is enabled")
+		}
+	})
+
+	t.Run("disabled by BUILDKITE even with CI opt-in", func(t *testing.T) {
+		writeUserConfig(t, "allow_keyring_in_ci: true\n")
 		setEnv(t, "BUILDKITE", "true")
 		setEnv(t, "BUILDKITE_NO_KEYRING", "")
-		setEnv(t, "CI", "")
+		setEnv(t, "CI", "true")
 
 		kr := New()
 		if kr.IsAvailable() {

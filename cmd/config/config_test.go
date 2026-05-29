@@ -17,7 +17,9 @@ func TestValidateKey(t *testing.T) {
 			"quiet",
 			"no_input",
 			"pager",
+			"telemetry",
 			"experiments",
+			"allow_keyring_in_ci",
 		}
 
 		for _, key := range validKeys {
@@ -53,9 +55,12 @@ func TestConfigKeyIsBool(t *testing.T) {
 		{KeyNoPager, true},
 		{KeyQuiet, true},
 		{KeyNoInput, true},
+		{KeyTelemetry, true},
+		{KeyAllowKeyringInCI, true},
 		{KeyOutputFormat, false},
 		{KeySelectedOrg, false},
 		{KeyPager, false},
+		{KeyExperiments, false},
 	}
 
 	for _, tt := range tests {
@@ -77,6 +82,9 @@ func TestConfigKeyIsUserOnly(t *testing.T) {
 	}{
 		{KeyNoInput, true},
 		{KeyPager, true},
+		{KeyTelemetry, true},
+		{KeyExperiments, true},
+		{KeyAllowKeyringInCI, true},
 		{KeyNoPager, false},
 		{KeyQuiet, false},
 		{KeyOutputFormat, false},
@@ -112,7 +120,7 @@ func TestConfigKeyValidValues(t *testing.T) {
 	t.Run("boolean keys have true/false", func(t *testing.T) {
 		t.Parallel()
 
-		for _, key := range []ConfigKey{KeyNoPager, KeyQuiet, KeyNoInput} {
+		for _, key := range []ConfigKey{KeyNoPager, KeyQuiet, KeyNoInput, KeyTelemetry, KeyAllowKeyringInCI} {
 			values := key.ValidValues()
 			if values == nil {
 				t.Errorf("%s.ValidValues() = nil, want [true, false]", key)

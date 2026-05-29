@@ -1,11 +1,10 @@
-package config
+package configfile
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/buildkite/cli/v3/pkg/keyring"
 	"github.com/spf13/afero"
 )
 
@@ -80,17 +79,16 @@ func TestConfig(t *testing.T) {
 		if got := conf.OrganizationSlug(); got != "buildkite-test" {
 			t.Errorf("OrganizationSlug() does not match: %s", got)
 		}
-		if got := conf.APIToken(); got != "test-token-1234" {
-			t.Errorf("APIToken() does not match: %s", got)
+		if got := conf.LegacyTokenForOrg(conf.OrganizationSlug()); got != "test-token-1234" {
+			t.Errorf("LegacyTokenForOrg() does not match: %s", got)
 		}
 		if got := conf.PreferredPipelines(); len(got) != 2 {
 			t.Errorf("PreferredPipelines() does not match: %d", len(got))
 		}
 	})
 
-	t.Run("APITokenForOrg reads legacy tokens from config", func(t *testing.T) {
+	t.Run("LegacyTokenForOrg reads legacy tokens from config", func(t *testing.T) {
 		t.Parallel()
-		setEnv(t, "BUILDKITE_API_TOKEN", "")
 
 		fs := afero.NewMemMapFs()
 		// Write a config with legacy token entries
@@ -100,14 +98,17 @@ func TestConfig(t *testing.T) {
 		}
 		conf := New(fs, nil)
 
-		if conf.APITokenForOrg("org1") != "token-org1" {
-			t.Errorf("expected token-org1, got %s", conf.APITokenForOrg("org1"))
+		if conf.LegacyTokenForOrg("org1") != "token-org1" {
+			t.Errorf("expected token-org1, got %s", conf.LegacyTokenForOrg("org1"))
 		}
-		if conf.APITokenForOrg("org2") != "token-org2" {
-			t.Errorf("expected token-org2, got %s", conf.APITokenForOrg("org2"))
+		if conf.LegacyTokenForOrg("org2") != "token-org2" {
+			t.Errorf("expected token-org2, got %s", conf.LegacyTokenForOrg("org2"))
 		}
-		if conf.APITokenForOrg("nonexistent") != "" {
-			t.Errorf("expected empty token for nonexistent org, got %s", conf.APITokenForOrg("nonexistent"))
+		if conf.LegacyTokenForOrg("nonexistent") != "" {
+			t.Errorf("expected empty token for nonexistent org, got %s", conf.LegacyTokenForOrg("nonexistent"))
+		}
+		if conf.HasLegacyTokenForOrg("org1") == false {
+			t.Error("expected HasLegacyTokenForOrg to be true for org1")
 		}
 	})
 
@@ -323,35 +324,33 @@ func TestConfig(t *testing.T) {
 	})
 }
 
-func TestAPITokenForOrgNoKeyring(t *testing.T) {
-	// Ensure BUILDKITE_NO_KEYRING disables keychain access entirely and that
-	// APITokenForOrg falls through to the config file (legacy) path without
-	// attempting to call the OS keychain.
-	setEnv(t, "BUILDKITE_NO_KEYRING", "1")
-	setEnv(t, "CI", "")
-	setEnv(t, "BUILDKITE", "")
-	setEnv(t, "BUILDKITE_API_TOKEN", "")
-	keyring.ResetForTesting()
-	t.Cleanup(keyring.ResetForTesting)
+func TestAllowKeyringInCI(t *testing.T) {
+	t.Run("reads from user config", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		content := []byte("allow_keyring_in_ci: true\n")
+		if err := afero.WriteFile(fs, configFile(), content, 0o600); err != nil {
+			t.Fatalf("failed to write config: %v", err)
+		}
 
-	fs := afero.NewMemMapFs()
-	content := []byte("organizations:\n  my-org:\n    api_token: legacy-token\n")
-	if err := afero.WriteFile(fs, configFile(), content, 0o600); err != nil {
-		t.Fatalf("failed to write config: %v", err)
-	}
+		conf := New(fs, nil)
+		if !conf.AllowKeyringInCI() {
+			t.Fatal("expected AllowKeyringInCI to be true")
+		}
+	})
 
-	conf := New(fs, nil)
+	t.Run("persists via setter", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		conf := New(fs, nil)
 
-	// Should return the legacy file token without touching the keychain.
-	if got := conf.APITokenForOrg("my-org"); got != "legacy-token" {
-		t.Errorf("APITokenForOrg() = %q, want %q", got, "legacy-token")
-	}
+		if err := conf.SetAllowKeyringInCI(true); err != nil {
+			t.Fatalf("SetAllowKeyringInCI() error: %v", err)
+		}
 
-	// Keyring must report unavailable.
-	kr := keyring.New()
-	if kr.IsAvailable() {
-		t.Error("expected keyring to be unavailable when BUILDKITE_NO_KEYRING=1")
-	}
+		reloaded := New(fs, nil)
+		if !reloaded.AllowKeyringInCI() {
+			t.Fatal("expected AllowKeyringInCI to persist as true")
+		}
+	})
 }
 
 func TestExperiments(t *testing.T) {
