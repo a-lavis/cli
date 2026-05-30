@@ -111,8 +111,8 @@ func isKeyringAvailable() bool {
 			return
 		}
 
-		// Disable keyring in CI environments
-		if os.Getenv("CI") != "" || os.Getenv("BUILDKITE") != "" {
+		// Disable keyring in Buildkite agent environments
+		if os.Getenv("BUILDKITE") != "" {
 			keyringAvailable = false
 			return
 		}

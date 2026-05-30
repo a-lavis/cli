@@ -41,14 +41,14 @@ func TestIsKeyringAvailable(t *testing.T) {
 		}
 	})
 
-	t.Run("disabled by CI", func(t *testing.T) {
+	t.Run("not disabled by CI", func(t *testing.T) {
 		setEnv(t, "CI", "true")
 		setEnv(t, "BUILDKITE_NO_KEYRING", "")
 		setEnv(t, "BUILDKITE", "")
 
 		kr := New()
-		if kr.IsAvailable() {
-			t.Error("expected keyring to be unavailable when CI is set")
+		if !kr.IsAvailable() {
+			t.Error("expected keyring to remain available when only CI is set")
 		}
 	})
 
